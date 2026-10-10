@@ -1,0 +1,19 @@
+{
+  "tfjsVersion": "1.3.1",
+  "tmVersion": "0.8.4-alpha2",
+  "modelName": "gestos-braco",
+  "packageVersion": "0.8.4-alpha2",
+  "packageName": "@teachablemachine/image",
+  "timeStamp": "2026-10-10T18:14:19.716Z",
+  "userMetadata": {},
+  "labels": [
+    "Parado",
+    "Abrir",
+    "Fechar",
+    "Esquerda",
+    "Direita",
+    "Subir",
+    "Descer"
+  ],
+  "imageSize": 224
+}

@@ -1,0 +1,8 @@
+services:
+  braco-3d:
+    build: .
+    image: braco-3d:latest
+    container_name: braco-3d
+    ports:
+      - "8090:80"
+    restart: unless-stopped

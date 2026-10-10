@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Braço Robótico 3D</title>
+<meta name="description" content="Simulador 3D de braço robótico de 6 juntas numa bancada de laboratório, controlado por sliders, teclado ou gestos na webcam.">
+<meta name="theme-color" content="#d9dad6">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@600;700&family=IBM+Plex+Mono:wght@500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="css/app.css">
+<link rel="modulepreload" href="js/app.js">
+<link rel="preload" href="models/braco_robotico.glb" as="fetch" crossorigin>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/",
+  "three-mesh-bvh": "https://cdn.jsdelivr.net/npm/three-mesh-bvh@0.8.3/build/index.module.js"
+} }
+</script>
+</head>
+<body>
+<div id="app" aria-label="Cena 3D: arraste para girar, role para aproximar"></div>
+
+<!-- ============================================================ controle -->
+<section id="panel" class="panel" aria-label="Controle do braço">
+  <header class="phead">
+    <div class="brand"><span class="mark" aria-hidden="true"></span>Braço<b>3D</b></div>
+    <button class="collapse icon" aria-expanded="true" aria-controls="panelBody" title="Recolher painel">
+      <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 10l4-4 4 4"/></svg></button>
+  </header>
+  <div id="panelBody" class="pbody">
+    <div class="tabs" role="tablist" aria-label="Seções">
+      <button role="tab" id="tabJ" aria-controls="tpJ">Juntas</button>
+      <button role="tab" id="tabV" aria-controls="tpV">Vidrarias</button>
+      <button role="tab" id="tabT" aria-controls="tpT">Teclado</button>
+    </div>
+
+    <div role="tabpanel" id="tpJ" aria-labelledby="tabJ">
+      <div id="sliders"></div>
+      <div class="btns">
+        <button id="ref">Pose de referência</button>
+        <button id="zero">Zerar juntas</button>
+      </div>
+      <label class="switch"><input type="checkbox" id="colisoes" checked><i aria-hidden="true"></i>
+        <span>Bloquear colisões<small>O braço para ao encostar na mesa ou nas vidrarias</small></span></label>
+    </div>
+
+    <div role="tabpanel" id="tpV" aria-labelledby="tabV" hidden>
+      <p class="lead">Pegada automática: o braço planeja a trajetória, pega a vidraria e a levanta.</p>
+      <ul id="items" class="items"></ul>
+      <button id="devolver" class="primary wide">Devolver à posição original</button>
+      <div class="note">
+        <b>Pegada manual</b>
+        Posicione a garra em volta da vidraria (corpo, gargalo, tampa, base…) e feche a garra para pegar.
+        Abra a garra para soltar a peça sobre a mesa.
+      </div>
+    </div>
+
+    <div role="tabpanel" id="tpT" aria-labelledby="tabT" hidden>
+      <table id="keys">
+        <thead><tr><th>Junta</th><th>−</th><th>+</th><th title="Graus por toque">Passo</th></tr></thead>
+        <tbody></tbody>
+      </table>
+      <p class="hint">Clique numa tecla e pressione a nova. <kbd>Esc</kbd> cancela, <kbd>Backspace</kbd> remove.
+        Segure a tecla para mover continuamente.</p>
+      <button id="keysReset" class="ghost">Restaurar teclas padrão</button>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ gestos -->
+<section id="gPanel" class="panel" aria-label="Controle por gestos">
+  <header class="phead">
+    <h2>Gestos <small>webcam</small></h2>
+    <button class="collapse icon" aria-expanded="true" aria-controls="gBody" title="Recolher painel">
+      <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 10l4-4 4 4"/></svg></button>
+  </header>
+  <div id="gBody" class="pbody">
+    <button id="gCam" class="primary wide">Ligar câmera</button>
+    <div id="gVideo"></div>
+    <div id="gStatus" aria-live="polite"></div>
+    <div id="gestos"></div>
+    <label class="switch"><input type="checkbox" id="gCtl"><i aria-hidden="true"></i>
+      <span>Mover o braço com gestos</span></label>
+    <div class="model">
+      <div class="mhead"><span>Modelo:</span> <b id="gModelName">padrão</b> <span id="gModelTag" class="tag" hidden>local</span></div>
+      <div class="btns">
+        <button id="gUpload" title="Arquivo .zip exportado do Teachable Machine (ou model.json + metadata.json + weights.bin)">Carregar modelo…</button>
+        <button id="gDefault" disabled>Usar o padrão</button>
+      </div>
+      <input type="file" id="gFile" accept=".zip,.json,.bin,.tm" multiple hidden>
+      <button id="gTrainBtn" class="ghost">Como treinar um modelo novo →</button>
+    </div>
+    <details class="more">
+      <summary>Ajustes</summary>
+      <div class="row"><span>Confiança mínima</span> <input type="range" id="gThr" min="50" max="99"> <output id="gThrOut"></output></div>
+      <div class="row"><span>Passo subir/avançar</span> <input type="number" id="gMm" min="1" max="50" step="1"> <span class="unit">mm</span></div>
+      <p class="hint">O gesto precisa ficar estável por um instante; a ação se repete enquanto ele continuar.
+        Os passos das juntas são os mesmos do teclado.</p>
+      <button id="gReset" class="ghost">Restaurar gestos padrão</button>
+    </details>
+  </div>
+</section>
+
+<!-- ============================================================ barra de ferramentas -->
+<nav class="tools" aria-label="Vista">
+  <button id="viewBtn" class="icon" title="Recentralizar a vista">
+    <svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="3"/><path d="M10 1v4M10 15v4M1 10h4M15 10h4"/></svg></button>
+  <button id="helpBtn" class="icon" title="Como usar">
+    <svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="8.5"/><path d="M7.6 7.6a2.5 2.5 0 1 1 3.4 2.3c-.6.3-1 .8-1 1.5v.6"/><circle cx="10" cy="14.6" r=".4" fill="currentColor"/></svg></button>
+</nav>
+
+<div id="status" role="status" aria-live="polite"></div>
+
+<!-- ============================================================ carregamento -->
+<div id="loader">
+  <div class="card">
+    <div class="mark big" aria-hidden="true"></div>
+    <div class="title">Montando a bancada</div>
+    <div class="meter"><i></i></div>
+    <div class="msg">Carregando modelos 3D…</div>
+    <button class="retry primary" hidden>Recarregar</button>
+  </div>
+</div>
+
+<!-- ============================================================ ajuda -->
+<dialog id="help" aria-labelledby="helpTitle">
+  <header><h2 id="helpTitle">Como usar</h2><button class="close icon" title="Fechar">
+    <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg></button></header>
+  <dl>
+    <dt>Vista</dt>
+    <dd>Arraste para girar, botão direito (ou dois dedos) para deslocar, role para aproximar.</dd>
+    <dt>Juntas</dt>
+    <dd>Mova os controles deslizantes ou use o teclado: <kbd>A</kbd>/<kbd>D</kbd> base, <kbd>S</kbd>/<kbd>W</kbd> ombro,
+      <kbd>F</kbd>/<kbd>R</kbd> cotovelo, <kbd>G</kbd>/<kbd>T</kbd> punho, <kbd>Q</kbd>/<kbd>E</kbd> rotação,
+      <kbd>Z</kbd>/<kbd>X</kbd> fecha/abre a garra. As teclas podem ser trocadas na aba Teclado.</dd>
+    <dt>Vidrarias</dt>
+    <dd>Use “Pegar” para uma pegada automática, ou feche a garra em volta de uma vidraria para pegá-la à mão.
+      Abra a garra sobre a mesa para soltar.</dd>
+    <dt>Gestos</dt>
+    <dd>Ligue a câmera e faça os gestos treinados no Teachable Machine. A câmera só funciona em HTTPS ou em localhost.
+      Para usar um modelo seu, veja “Como treinar um modelo novo” no painel Gestos.</dd>
+  </dl>
+  <button class="primary wide" onclick="this.closest('dialog').close()">Começar</button>
+</dialog>
+
+<!-- ============================================================ guia de treino -->
+<dialog id="train" class="wide" aria-labelledby="trainTitle">
+  <header><h2 id="trainTitle">Treinar gestos</h2><button class="close icon" title="Fechar">
+    <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg></button></header>
+  <div class="doc">
+    <p>O reconhecimento usa um modelo de imagem do
+      <a href="https://teachablemachine.withgoogle.com/train/image" target="_blank" rel="noopener">Google Teachable Machine</a>.
+      Você pode treinar o seu e testá-lo aqui sem instalar nada.</p>
+    <ol>
+      <li><b>Abra um projeto de imagem.</b> No Teachable Machine escolha <i>Projeto de imagem → Modelo de imagem padrão</i>.
+        Para melhorar um projeto existente, use <i>☰ → Abrir projeto do arquivo</i> e escolha o arquivo <code>.tm</code>.</li>
+      <li><b>Crie uma classe por gesto</b>, com estes nomes exatos (maiúsculas e acentos contam):
+        <ul class="labels">
+          <li>Parado<span>nada</span></li><li>Abrir<span>abre a garra</span></li><li>Fechar<span>fecha a garra</span></li>
+          <li>Esquerda<span>gira a base</span></li><li>Direita<span>gira a base</span></li>
+          <li>Subir<span>garra sobe</span></li><li>Descer<span>garra desce</span></li>
+        </ul>
+        Classes com outros nomes também funcionam: elas chegam sem ação e você escolhe a ação de cada uma no painel Gestos.</li>
+      <li><b>Grave as amostras pela webcam</b>, de 150 a 300 por classe. Varie distância, posição da mão e iluminação.
+        Na classe <i>Parado</i>, grave só você, sem a mão, e também o fundo vazio.</li>
+      <li><b>Treine</b> com <i>Treinar modelo</i> e confira na prévia se cada gesto passa de 85% de confiança.</li>
+      <li><b>Exporte:</b> <i>Exportar modelo → TensorFlow.js → Fazer download → Baixar meu modelo</i>. Você recebe um <code>.zip</code>.</li>
+      <li><b>Teste aqui:</b> no painel Gestos clique em <i>Carregar modelo…</i> e escolha o <code>.zip</code>
+        (ou arraste o arquivo até o painel). Depois ligue a câmera.</li>
+      <li><b>Guarde o projeto</b> com <i>☰ → Salvar projeto no arquivo</i> para poder retreinar depois.</li>
+    </ol>
+    <p class="callout">O modelo carregado fica só neste navegador: ele não é enviado para o servidor e some ao recarregar a página.
+      O arquivo <code>.tm</code> é o projeto com as fotos de treino e não funciona direto aqui; exporte o modelo antes.</p>
+  </div>
+  <button class="primary wide" onclick="this.closest('dialog').close()">Entendi</button>
+</dialog>
+
+<script type="module" src="js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,8 @@
+# projeto do Teachable Machine: contém as fotos de treino (fica só local)
+teachable-machine/*.tm
+# backups automáticos do Blender
+*.blend1
+*.blend2
+node_modules/
+.DS_Store
+Thumbs.db
