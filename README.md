@@ -114,4 +114,4 @@ braco-3d/
 
 three.js 0.169 · three-mesh-bvh 0.8 · TensorFlow.js 1.3 + @teachablemachine/image 0.8.5 · fflate · Blender (bpy) · nginx
 
-As bibliotecas são carregadas de CDN (jsDelivr); não há etapa de build.
+O three.js e o three-mesh-bvh ficam em `web/vendor/`; só o TensorFlow.js e o Teachable Machine vêm de CDN (jsDelivr). Não há etapa de build.

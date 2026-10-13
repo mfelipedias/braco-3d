@@ -1,8 +1,12 @@
 # Arquitetura e funcionamento
 
-A aplicação é estática (HTML + CSS + módulos ES), sem etapa de build. As bibliotecas vêm do jsDelivr
-via *import map* (`three`, `three/addons/`, `three-mesh-bvh`); TensorFlow.js e o pacote do Teachable Machine
-só são baixados quando a câmera é ligada ou um modelo é carregado.
+A aplicação é estática (HTML + CSS + módulos ES), sem etapa de build. O three.js e o three-mesh-bvh
+ficam em `web/vendor/` e são mapeados pelo *import map* (`three`, `three/addons/`, `three-mesh-bvh`), para a cena
+abrir mesmo sem acesso a CDN. TensorFlow.js e o pacote do Teachable Machine vêm do jsDelivr e só são baixados
+quando a câmera é ligada ou um modelo é carregado.
+
+Um script inline no `index.html` vigia a tela de carregamento: sem WebGL, com navegador sem suporte a
+*import map*, com erro ao iniciar o módulo ou após 45 s sem terminar, ela mostra o motivo e o botão Recarregar.
 
 ## Módulos
 

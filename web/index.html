@@ -11,15 +11,16 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@600;700&family=IBM+Plex+Mono:wght@500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
 <link rel="stylesheet" href="css/app.css">
-<link rel="modulepreload" href="js/app.js">
-<link rel="preload" href="models/braco_robotico.glb" as="fetch" crossorigin>
+<!-- o import map precisa vir antes de qualquer modulepreload, senão o Firefox o ignora -->
 <script type="importmap">
 { "imports": {
-  "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
-  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/",
-  "three-mesh-bvh": "https://cdn.jsdelivr.net/npm/three-mesh-bvh@0.8.3/build/index.module.js"
+  "three": "./vendor/three/three.module.js",
+  "three/addons/": "./vendor/three/addons/",
+  "three-mesh-bvh": "./vendor/three-mesh-bvh.module.js"
 } }
 </script>
+<link rel="modulepreload" href="js/app.js">
+<link rel="preload" href="models/braco_robotico.glb" as="fetch" crossorigin>
 </head>
 <body>
 <div id="app" aria-label="Cena 3D: arraste para girar, role para aproximar"></div>
@@ -179,6 +180,31 @@
   <button class="primary wide" onclick="this.closest('dialog').close()">Entendi</button>
 </dialog>
 
-<script type="module" src="js/app.js"></script>
+<script>
+// Se o módulo nem chegar a rodar (navegador antigo, sem WebGL, arquivo bloqueado), a tela de
+// carregamento mostra o motivo em vez de girar para sempre.
+function falhaCarregamento(msg) {
+  const l = document.getElementById('loader');
+  if (!l || l.classList.contains('done') || l.classList.contains('failed')) return;
+  l.classList.add('failed');
+  l.querySelector('.msg').textContent = msg;
+  const b = l.querySelector('.retry');
+  b.hidden = false;
+  b.onclick = () => location.reload();
+}
+(function () {
+  const c = document.createElement('canvas');
+  if (!(c.getContext('webgl2') || c.getContext('webgl'))) {
+    falhaCarregamento('Este navegador não conseguiu iniciar o WebGL. Ative a aceleração por hardware ' +
+      '(Configurações → Sistema) ou use outro navegador atualizado.');
+  } else if (!HTMLScriptElement.supports || !HTMLScriptElement.supports('importmap')) {
+    falhaCarregamento('Este navegador é antigo demais para o simulador. Atualize o Chrome, Edge, Firefox ou Safari.');
+  }
+  addEventListener('error', (e) => falhaCarregamento(`Erro ao iniciar a cena: ${e.message || 'arquivo não carregou'}.`));
+  addEventListener('unhandledrejection', (e) => falhaCarregamento(`Erro ao iniciar a cena: ${e.reason?.message ?? e.reason}.`));
+  setTimeout(() => falhaCarregamento('O carregamento está demorando demais. Verifique a conexão e recarregue a página.'), 45000);
+})();
+</script>
+<script type="module" src="js/app.js" onerror="falhaCarregamento('Não foi possível baixar o código do simulador. Recarregue a página.')"></script>
 </body>
 </html>
